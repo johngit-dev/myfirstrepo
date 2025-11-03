@@ -1,4 +1,78 @@
-amzon is what am learing
-changes 2
-pplet me take this oo
-hello brother
+pipeline {
+    agent any
+    tools {
+        jdk 'jdk17'
+        nodejs 'node16'
+    }
+    environment {
+        SCANNER_HOME = tool 'mysonar'
+    }
+    stages {
+        stage ("Clean WS") {
+            steps {
+                cleanWs()
+            }
+        }
+        stage ("GitHub") {
+            steps {
+                git branch: 'main', url: 'https://github.com/johngit-dev/Project.git'
+            }
+        }
+        stage ("CQA") {
+            steps {
+                withSonarQubeEnv('mysonar') {
+                    sh '''$SCANNER_HOME/bin/sonar-scanner -Dsonar.projectName=finalproject \
+                    -Dsonar.projectKey=finalproject'''
+                }
+            }
+        }
+        stage ("Quality Gates") {
+            steps {
+                script {
+                    waitForQualityGate abortPipeline: false, credentialsId: 'sonar-token'
+                }
+            }
+        }
+        stage ("Build") {
+            steps {
+                sh 'npm install'
+            }
+        }
+        stage ("OWASP") {
+            steps {
+                dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit', odcInstallation: 'DP-Check'
+                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+            }
+        }
+        stage ("Dockerfile") {
+            steps {
+                sh 'docker build -t johndocker37/john-projectone:online .'
+            }
+        }
+        stage ("trivy file") {
+            steps {
+                sh 'trivy fs . > trivyfs.txt'
+            }
+        }
+        stage ("ImageScan") {
+            steps {
+                sh 'trivy image johndocker37/john-projectone:online'
+            }
+        }
+        stage ("DockerHub") {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'dockerhub') {
+                        sh 'docker push johndocker37/john-projectone:online'
+                    }
+                }
+            }
+        }
+        stage ("Container") {
+            steps {
+                sh 'docker run -itd --name cont-4 -p 3000:3000 johndocker37/john-projectone:online'
+            }
+        }
+    }
+}
+
