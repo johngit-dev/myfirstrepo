@@ -15,7 +15,7 @@ pipeline {
         }
         stage ("GitHub") {
             steps {
-                git branch: 'main', url: 'https://github.com/johngit-dev/Project.git'
+                git credentialsId: 'github-creds', branch: 'main', url: 'https://github.com/johngit-dev/Project.git'
             }
         }
         stage ("CQA") {
